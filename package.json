@@ -16,7 +16,8 @@
     "studio": "cd packages/database && NODE_TLS_REJECT_UNAUTHORIZED=0 npx prisma studio",
     "clean": "git clean -xdf node_modules",
     "gen:api-web": "cd apps/web && pnpm orval --config ./orval.config.ts",
-    "gen:api-admin": "cd apps/admin && pnpm orval --config ./orval.config.ts"
+    "gen:api-admin": "cd apps/admin && pnpm orval --config ./orval.config.ts",
+    "typecheck": "turbo typecheck"
   },
   "devDependencies": {
     "@auto-it/all-contributors": "^11.3.6",

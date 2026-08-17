@@ -5,7 +5,8 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "analyze": "ANALYZE=true pnpm build"
+    "analyze": "ANALYZE=true pnpm build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

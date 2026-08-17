@@ -17,6 +17,8 @@ export default [
       "**/.react-router/",
       "**/storybook-static/",
       "**/.react-email/",
+      "**/out/",
+      "outputs/",
       "packages/design-system/components/ui/",
       "packages/design-system/lib/",
       "packages/design-system/hooks/",
@@ -34,10 +36,7 @@ export default [
   //    falls back to the base JS + typescript-eslint rules above.
   ...nextCoreWebVitals.map((config) => ({
     ...config,
-    files: [
-      "apps/web/**/*.{ts,tsx,js,jsx}",
-      "apps/admin/**/*.{ts,tsx,js,jsx}",
-    ],
+    files: ["apps/web/**/*.{ts,tsx,js,jsx}", "apps/admin/**/*.{ts,tsx,js,jsx}"],
   })),
 
   // 4a. Fastify app (apps/api) runs on Node. It gets the base JS +
@@ -80,6 +79,8 @@ export default [
         global: "readonly",
         URL: "readonly",
         URLSearchParams: "readonly",
+        fetch: "readonly",
+        WebSocket: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
         setInterval: "readonly",
@@ -110,7 +111,9 @@ export default [
       const next = { ...config, files: ["apps/frontend/**/*.{ts,tsx,js,jsx}"] };
       if (next.plugins && "@next/next" in next.plugins) {
         next.plugins = Object.fromEntries(
-          Object.entries(next.plugins).filter(([name]) => name !== "@next/next"),
+          Object.entries(next.plugins).filter(
+            ([name]) => name !== "@next/next",
+          ),
         );
       }
       if (next.rules) {
