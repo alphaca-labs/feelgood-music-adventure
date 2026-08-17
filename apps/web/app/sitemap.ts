@@ -1,34 +1,13 @@
-import fs from "node:fs";
-import path from "node:path";
-import { baseUrl } from "lib/utils";
 import type { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/site";
 
-type Route = {
-  url: string;
-  lastModified: string;
-};
+// Required by output: "export" — these routes are emitted as files, never served dynamically.
+export const dynamic = "force-static";
 
-export const dynamic = "force-dynamic";
+// Static export: the game is a single route with client-side scenes (spec §3).
+// `force-dynamic` would abort `output: "export"`, so this stays a pure constant.
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: `${siteUrl}/`, changeFrequency: "monthly", priority: 1 },
+];
 
-const appFolders = fs.readdirSync(path.join(process.cwd(), "app/(pages)"), {
-  withFileTypes: true,
-});
-const pages = appFolders
-  .filter((file) => file.isDirectory())
-  .filter((folder) => !folder.name.startsWith("_"))
-  .filter((folder) => !folder.name.startsWith("("))
-  .map((folder) => folder.name);
-
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const routesMap = [""].map((route) => ({
-    url: `${baseUrl}${route}`,
-    lastModified: new Date().toISOString(),
-  }));
-
-  const pageRoutes: Route[] = pages.map((page) => ({
-    url: `${baseUrl}/${page}`,
-    lastModified: new Date().toISOString(),
-  }));
-
-  return [...routesMap, ...pageRoutes];
-}
+export default sitemap;
