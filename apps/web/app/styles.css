@@ -903,7 +903,10 @@ button:focus-visible {
 .grade-stamp strong {
   font-family: var(--font-display);
   font-size: clamp(8rem, 22vw, 18rem);
+  /* The tight line box makes the glyph paint above it and collide with the GRADE
+     label, so the letter is nudged back inside its own box. */
   line-height: 0.74;
+  padding-top: 0.22em;
   text-shadow: var(--s-2) var(--s-2) 0 var(--pink-hot);
 }
 
