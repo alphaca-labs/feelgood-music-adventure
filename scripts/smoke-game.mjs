@@ -12,7 +12,7 @@
  * third-party dependencies (Node's global WebSocket).
  */
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
@@ -165,6 +165,166 @@ const runSimulation = async () => {
   );
 };
 
+/* ── Phase 1b · mode sets (DANCE / SOCCER / DRIVE) ───────────────────────── */
+
+const runModeSimulation = async () => {
+  console.log("\n[1b/3] mode simulation");
+  const modes = await import(
+    path.join(repoRoot, "apps/web/lib/game/mode-simulation.ts")
+  );
+  const dt = 1 / 60;
+  const play = (world, policy, limitSeconds) => {
+    let frames = 0;
+    while (!world.finished && frames < 60 * limitSeconds) {
+      modes.stepModeWorld(world, dt, policy(world, frames * dt));
+      world.events.length = 0;
+      frames += 1;
+    }
+    return modes.summarizeMode(world);
+  };
+
+  check(
+    "modes: three sets registered",
+    modes.MODE_IDS.length === 3 &&
+      modes.MODE_IDS.every((id) => modes.isModeId(id)),
+    modes.MODE_IDS.join(","),
+  );
+
+  /* DANCE — an on-beat player clears the chart; an idle one still finishes. */
+  const chart = modes.buildDanceChart();
+  check(
+    "dance: chart is sorted and uses all four lanes",
+    chart.every((note, index) => index === 0 || note.time >= chart[index - 1].time) &&
+      new Set(chart.map((note) => note.lane)).size === 4,
+    `${chart.length} notes`,
+  );
+  const danceSummary = play(
+    modes.createDanceWorld(),
+    (world, time) => {
+      const input = modes.emptyModeInput();
+      for (const note of world.notes) {
+        if (note.judged) continue;
+        if (note.time > time + dt) break;
+        if (Math.abs(note.time - time) > dt * 0.75) continue;
+        if (note.lane === 0) input.leftPressed = true;
+        if (note.lane === 1) input.bPressed = true;
+        if (note.lane === 2) input.aPressed = true;
+        if (note.lane === 3) input.rightPressed = true;
+      }
+      return input;
+    },
+    modes.DANCE_SECONDS + 5,
+  );
+  check(
+    "dance: an on-beat run grades S with zero misses",
+    danceSummary.grade === "S" && danceSummary.stats[2].value === "00",
+    `${danceSummary.grade} · miss ${danceSummary.stats[2].value}`,
+  );
+  check(
+    "dance: the set always reaches the result",
+    danceSummary.complete && danceSummary.seconds === modes.DANCE_SECONDS,
+    `${danceSummary.seconds}s`,
+  );
+  const danceIdle = play(
+    modes.createDanceWorld(),
+    () => modes.emptyModeInput(),
+    modes.DANCE_SECONDS + 5,
+  );
+  check(
+    "dance: an idle run still finishes and grades lower",
+    danceIdle.grade === "C" && danceIdle.score === 0,
+    `${danceIdle.grade} / ${danceIdle.score}`,
+  );
+
+  /* SOCCER — chase, kick, and win; doing nothing loses. */
+  const soccerSummary = play(
+    modes.createSoccerWorld(),
+    (world) => {
+      const input = modes.emptyModeInput();
+      const { ball, player } = world;
+      if (ball.x > player.x + 6) input.right = true;
+      else if (ball.x < player.x - 6) input.left = true;
+      if (Math.abs(ball.x - player.x) < 22) input.bPressed = true;
+      if (ball.y < modes.SOCCER_GROUND - 40 && Math.abs(ball.x - player.x) < 26) {
+        input.aPressed = true;
+      }
+      return input;
+    },
+    modes.SOCCER_SECONDS + 5,
+  );
+  check(
+    "soccer: a played match is winnable and ends on the 5-goal rule",
+    soccerSummary.complete && soccerSummary.stats[0].value === "5",
+    `${soccerSummary.stampValue} in ${soccerSummary.seconds}s`,
+  );
+  const soccerIdle = play(
+    modes.createSoccerWorld(),
+    () => modes.emptyModeInput(),
+    modes.SOCCER_SECONDS + 5,
+  );
+  check(
+    "soccer: an idle match still ends inside the clock",
+    soccerIdle.seconds <= modes.SOCCER_SECONDS && !soccerIdle.complete,
+    `${soccerIdle.stampLabel} ${soccerIdle.stampValue}`,
+  );
+
+  /* DRIVE — jumping and shooting reach 4,000M; ignoring both wrecks the car. */
+  const driveSummary = play(
+    modes.createDriveWorld(),
+    (world) => {
+      const input = modes.emptyModeInput();
+      input.right = true;
+      const next = world.hazards.find(
+        (hazard) => !hazard.spent && hazard.distance > world.distance,
+      );
+      if (next && next.kind === "block") {
+        const gap = next.distance - world.distance;
+        if (world.boost >= 40 && gap < 200 && world.shotMs === 0) {
+          input.bPressed = true;
+        } else if (gap < 24 && world.jumpMs === 0) {
+          input.aPressed = true;
+        }
+      }
+      return input;
+    },
+    300,
+  );
+  check(
+    "drive: a played run reaches 4,000M with HP left",
+    driveSummary.complete && driveSummary.stats[0].value === "4,000M",
+    `${driveSummary.stampLabel} · smash ${driveSummary.stats[3].value}`,
+  );
+  const driveIdle = play(
+    modes.createDriveWorld(),
+    () => modes.emptyModeInput(),
+    300,
+  );
+  check(
+    "drive: ignoring every hazard ends the run as WRECKED",
+    !driveIdle.complete && driveIdle.stampLabel === "WRECKED",
+    driveIdle.stampValue,
+  );
+
+  /* Determinism: the same inputs must replay identically (seeded RNG). */
+  const replayA = play(modes.createSoccerWorld(), () => modes.emptyModeInput(), 120);
+  const replayB = play(modes.createSoccerWorld(), () => modes.emptyModeInput(), 120);
+  check(
+    "modes: identical input replays identically",
+    JSON.stringify(replayA) === JSON.stringify(replayB),
+  );
+
+  /* Every mode summary can drive the shared result pass. */
+  for (const summary of [danceSummary, soccerSummary, driveSummary]) {
+    check(
+      `${summary.mode}: result pass has a stamp, a headline and four stats`,
+      Boolean(summary.stampLabel && summary.stampValue && summary.stampNote) &&
+        summary.headline.includes("|") &&
+        summary.stats.length === 4,
+      summary.headline,
+    );
+  }
+};
+
 /* ── Phase 2 · exported bundle ───────────────────────────────────────────── */
 
 const MIME = {
@@ -216,6 +376,10 @@ const checkBundle = () => {
 
   const html = fs.readFileSync(path.join(outDir, "index.html"), "utf8");
   check("index.html carries the game title", html.includes("LET ME LOVE YOU"));
+  check("title advertises the real 110s run", html.includes("110 SEC"));
+  for (const label of ["DANCE", "SOCCER", "DRIVE"]) {
+    check(`title setlist offers ${label}`, html.includes(label));
+  }
 
   // Literal regression: the omniseed template shell must be gone from the *output*,
   // not just from the sources.
@@ -224,6 +388,8 @@ const checkBundle = () => {
     "DesignSystemProvider",
     "swiper",
     "next-themes",
+    // the title once advertised 120 SEC while the run is RUN_SECONDS = 110
+    "120 SEC",
   ];
   const bundleText = [];
   const walk = (dir) => {
@@ -246,7 +412,35 @@ const checkBundle = () => {
   const atlas = JSON.parse(
     fs.readFileSync(path.join(outDir, "assets/atlas-game.json"), "utf8"),
   );
-  check("atlas ships 100 frames", Object.keys(atlas.frames).length === 100);
+  check("atlas ships 113 frames", Object.keys(atlas.frames).length === 113);
+  const modeFrames = [
+    "arrow_left",
+    "arrow_right",
+    "arrow_up",
+    "arrow_down",
+    "judgement_ring",
+    "soccer_ball_0",
+    "soccer_ball_1",
+    "soccer_goal",
+    "drive_car",
+    "road_solid",
+    "road_dash",
+    "sunset_far",
+    "sunset_near",
+  ];
+  check(
+    "atlas ships the 13 mode frames below y=320",
+    modeFrames.every(
+      (name) => atlas.frames[name] && atlas.frames[name].frame.y >= 320,
+    ),
+    modeFrames.filter((name) => !atlas.frames[name]).join(",") || "all present",
+  );
+  check(
+    "mode frames never overlap the 100 runner rects",
+    Object.entries(atlas.frames)
+      .filter(([name]) => !modeFrames.includes(name))
+      .every(([, value]) => value.frame.y + value.frame.h <= 320),
+  );
   const size = Object.keys(atlas.frames).length;
   const png = fs.readFileSync(path.join(outDir, "assets/atlas-game.png"));
   check(
@@ -262,6 +456,18 @@ const checkBundle = () => {
     imageBytes <= 132 * 1024,
     `${imageBytes} B for ${size} frames`,
   );
+  // The 13 mode frames are generated; the committed PNG must still match the recipe.
+  const recipe = spawnSync(
+    process.execPath,
+    [path.join(repoRoot, "scripts/build-atlas-modes.mjs"), "--check"],
+    { encoding: "utf8" },
+  );
+  check(
+    "committed atlas matches scripts/build-atlas-modes.mjs",
+    recipe.status === 0,
+    `${recipe.stdout ?? ""}${recipe.stderr ?? ""}`.trim(),
+  );
+
   check(
     "atlas sha256 matches the committed source",
     createHash("sha256").update(png).digest("hex") ===
@@ -464,7 +670,7 @@ const runBrowser = async () => {
       "load note reports the frame contract",
       (
         await cdp.evaluate("document.querySelector('.load-note').textContent")
-      ).includes("100"),
+      ).includes("113"),
     );
 
     await cdp.evaluate(
@@ -475,6 +681,121 @@ const runBrowser = async () => {
       "title → select",
       await cdp.evaluate("!document.querySelector('.scene-select').hidden"),
     );
+
+    // ── mode sets: setlist → intro ticket → play → quit ──────────────────
+    await cdp.evaluate("document.querySelector('.text-button').click()");
+    await sleep(200);
+    for (const mode of ["dance", "soccer", "drive"]) {
+      await cdp.evaluate(`document.querySelector('.mode-stop-${mode}').click()`);
+      await sleep(120);
+      check(
+        `setlist selects ${mode}`,
+        await cdp.evaluate(
+          `document.querySelector('.mode-stop-${mode}').getAttribute('aria-pressed') === 'true'`,
+        ),
+      );
+      await cdp.evaluate("document.querySelector('.mode-enter').click()");
+      await sleep(250);
+      check(
+        `${mode}: title → intro ticket`,
+        await cdp.evaluate(
+          `document.querySelector('.scene-mode-start[data-mode="${mode}"]') !== null && !document.querySelector('.scene-mode-start').hidden`,
+        ),
+      );
+      check(
+        `${mode}: intro ticket states goal, rule and controls`,
+        await cdp.evaluate(
+          "[...document.querySelectorAll('.rule-triplet dd')].filter((node) => node.textContent.trim()).length === 3",
+        ),
+      );
+
+      await cdp.evaluate(
+        "document.querySelector('.mode-ticket-actions .primary-button').click()",
+      );
+      await sleep(800);
+      check(
+        `${mode}: intro → play`,
+        await cdp.evaluate("!document.querySelector('.scene-mode-play').hidden"),
+      );
+      const canvasSample = `(() => {
+        const canvas = document.querySelector('.scene-mode-play canvas');
+        const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let sum = 0; const distinct = new Set();
+        for (let i = 0; i < data.length; i += 40) { sum += data[i]; distinct.add(data[i] + ',' + data[i+1] + ',' + data[i+2]); }
+        return { sum, colors: distinct.size, width: canvas.width, height: canvas.height };
+      })()`;
+      const before = await cdp.evaluate(canvasSample);
+      check(
+        `${mode}: canvas is 320x180 with real pixels`,
+        before.width === 320 && before.height === 180 && before.colors > 6,
+        `${before.colors} colours`,
+      );
+
+      // real input through the shell: both buttons and both stage pads
+      await cdp.evaluate(`
+        for (const selector of ['.scene-mode-play .jump-button', '.scene-mode-play .action-button', '.scene-mode-play .move-pad-left', '.scene-mode-play .move-pad-right']) {
+          const node = document.querySelector(selector);
+          node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+          node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+        }
+      `);
+      await cdp.send("Input.dispatchKeyEvent", {
+        type: "keyDown",
+        code: "Space",
+        key: " ",
+        windowsVirtualKeyCode: 32,
+      });
+      await cdp.send("Input.dispatchKeyEvent", {
+        type: "keyUp",
+        code: "Space",
+        key: " ",
+      });
+      await sleep(1400);
+      const after = await cdp.evaluate(canvasSample);
+      check(`${mode}: canvas animates between frames`, after.sum !== before.sum);
+      const hudText = await cdp.evaluate(
+        "document.querySelector('.scene-mode-play .mode-hud').textContent",
+      );
+      check(
+        `${mode}: HUD reports the mode state`,
+        hudText.trim().length > 0 &&
+          (mode === "dance"
+            ? hudText.includes("CROWD")
+            : mode === "soccer"
+              ? hudText.includes("FIRST TO")
+              : hudText.includes("BOOST")),
+        hudText.replace(/\s+/g, " ").slice(0, 72),
+      );
+      check(
+        `${mode}: control deck labels both buttons`,
+        await cdp.evaluate(
+          "[...document.querySelectorAll('.scene-mode-play .control-button strong')].map((node) => node.textContent).filter(Boolean).length === 2",
+        ),
+      );
+
+      await cdp.evaluate(
+        "document.querySelector('.scene-mode-play .quit-button').click()",
+      );
+      await sleep(250);
+      check(
+        `${mode}: play → intro on quit`,
+        await cdp.evaluate("!document.querySelector('.scene-mode-start').hidden"),
+      );
+      await cdp.evaluate(
+        "document.querySelector('.mode-ticket-actions .secondary-button').click()",
+      );
+      await sleep(200);
+      check(
+        `${mode}: intro → title on 모드 바꾸기`,
+        await cdp.evaluate("!document.querySelector('.scene-title').hidden"),
+      );
+    }
+
+    // back to the adventure flow the rest of this phase asserts
+    await cdp.evaluate(
+      "document.querySelector('.scene-title .primary-button').click()",
+    );
+    await sleep(300);
 
     await cdp.evaluate("document.querySelector('.lane-ta').click()");
     await sleep(150);
@@ -618,6 +939,7 @@ const runBrowser = async () => {
 };
 
 await runSimulation();
+await runModeSimulation();
 checkBundle();
 if (!skipBrowser) await runBrowser();
 
