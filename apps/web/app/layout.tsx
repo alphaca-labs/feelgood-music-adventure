@@ -7,12 +7,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "LET ME LOVE YOU — 필굿뮤직 어드벤처",
   description:
-    "두 개의 버튼, 세 개의 무대, 한 번의 완주. 타이거 JK와 윤미래로 즐기는 2분짜리 도트 러너.",
+    "두 개의 버튼, 세 개의 무대, 한 번의 완주. 타이거 JK와 윤미래로 즐기는 110초짜리 도트 러너.",
   openGraph: {
     type: "website",
     locale: "ko_KR",
     title: "LET ME LOVE YOU — 필굿뮤직 어드벤처",
-    description: "정글 · 도시 · 무대를 달리는 120초 도트 러너",
+    description: "정글 · 도시 · 무대를 달리는 110초 도트 러너",
     url: siteUrl,
   },
 };
