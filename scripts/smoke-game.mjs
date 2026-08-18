@@ -388,8 +388,11 @@ const checkBundle = () => {
     "DesignSystemProvider",
     "swiper",
     "next-themes",
-    // the title once advertised 120 SEC while the run is RUN_SECONDS = 110
+    // the title once advertised 120 SEC while the run is RUN_SECONDS = 110;
+    // the metadata said the same thing in Korean, so both spellings stay banned.
     "120 SEC",
+    "120초",
+    "2분짜리",
   ];
   const bundleText = [];
   const walk = (dir) => {
