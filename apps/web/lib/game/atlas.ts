@@ -25,10 +25,14 @@ export type LoadedAtlas = { data: Atlas; image: HTMLImageElement };
  * `Cache-Control: max-age=600` and cannot be configured, so the version query is the
  * only cache key we control.
  */
-export const ASSET_VERSION = "1";
+export const ASSET_VERSION = "2";
 
-/** The atlas is one image + one JSON: exactly one image decode per session (spec §8 A6). */
-export const EXPECTED_FRAME_COUNT = 100;
+/**
+ * The atlas is one image + one JSON: exactly one image decode per session (spec §8 A6).
+ * 100 runner frames + the 13 mode frames appended below y=320 by
+ * `scripts/build-atlas-modes.mjs` (design contract `sprite-map.json`).
+ */
+export const EXPECTED_FRAME_COUNT = 113;
 
 const loadImage = (source: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
