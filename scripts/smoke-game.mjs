@@ -305,6 +305,28 @@ const runModeSimulation = async () => {
     driveIdle.stampValue,
   );
 
+  /* The route is seeded, so this walks the whole 4,000M rather than sampling:
+   * no two blocks may sit closer than one boosted jump carries the car, or a
+   * landing would drop it straight onto the next block. */
+  const driveBlocks = modes
+    .buildDriveRoute()
+    .filter((hazard) => hazard.kind === "block")
+    .map((hazard) => hazard.distance)
+    .sort((a, b) => a - b);
+  let driveMinGap = Infinity;
+  for (let i = 1; i < driveBlocks.length; i += 1) {
+    driveMinGap = Math.min(driveMinGap, driveBlocks[i] - driveBlocks[i - 1]);
+  }
+  const driveJumpReach =
+    modes.DRIVE_SPEED_BOOST_MAX *
+    modes.DRIVE_METERS_PER_SPEED *
+    (modes.DRIVE_JUMP_MS / 1000);
+  check(
+    "drive: no block pair is closer than one boosted jump",
+    driveBlocks.length > 0 && driveMinGap > driveJumpReach,
+    `blocks=${driveBlocks.length} min gap=${driveMinGap}M > jump=${driveJumpReach.toFixed(1)}M`,
+  );
+
   /* Determinism: the same inputs must replay identically (seeded RNG). */
   const replayA = play(modes.createSoccerWorld(), () => modes.emptyModeInput(), 120);
   const replayB = play(modes.createSoccerWorld(), () => modes.emptyModeInput(), 120);
