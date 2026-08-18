@@ -1276,3 +1276,379 @@ button:focus-visible {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ══ Mode sets · DANCE / SOCCER / DRIVE ═══════════════════════════════════
+   Additive only: every rule below is scoped to a `.mode-*` / `.scene-mode-*`
+   class that did not exist before, so the adventure runner's title, select,
+   play and result screens keep their exact computed styles. The mode play and
+   result scenes intentionally also carry `.scene-play` / `.scene-result` so the
+   existing layout, portrait cue and short-landscape rules apply unchanged. */
+
+/* ── M0 setlist on the title ────────────────────────────────────────────── */
+
+.mode-setlist {
+  display: grid;
+  justify-items: center;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-6) 0;
+}
+
+.mode-stops {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(720px, calc(100% - var(--s-6) * 2));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mode-stops::before {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  top: 11px;
+  height: var(--border);
+  background: linear-gradient(90deg, var(--teal), var(--pink-hot), var(--orange));
+}
+
+.mode-stop {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--s-1);
+  width: 100%;
+  min-width: 0;
+  padding: 0 0 var(--s-1);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: center;
+}
+
+.mode-stop::before {
+  content: "";
+  width: var(--s-6);
+  height: var(--s-6);
+  border: var(--border) solid var(--ink-deep);
+  background: color-mix(in srgb, var(--cream) 40%, var(--ink-deep));
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 var(--border) currentColor;
+}
+
+.mode-stop[aria-pressed="true"]::before {
+  background: var(--cream);
+}
+
+.mode-stop-dance {
+  color: var(--teal);
+}
+.mode-stop-soccer {
+  color: var(--pink-hot);
+}
+.mode-stop-drive {
+  color: var(--orange);
+}
+
+.mode-stop strong {
+  color: color-mix(in srgb, var(--white) 58%, transparent);
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 1.8vw, 1.3rem);
+  letter-spacing: 0.04em;
+}
+
+.mode-stop[aria-pressed="true"] strong {
+  color: var(--white);
+}
+
+.mode-stop small {
+  color: var(--cream);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.mode-stop[aria-pressed="true"] small::after {
+  content: " · 선택됨";
+  color: var(--pink-pale);
+}
+
+.mode-enter {
+  min-width: min(320px, 100%);
+  padding: 0 var(--s-4);
+  border: var(--border) solid var(--pink-hot);
+  color: var(--cream);
+  background: color-mix(in srgb, var(--pink-hot) 18%, var(--ink-deep));
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+/* ── M1 intro ticket ────────────────────────────────────────────────────── */
+
+.mode-ticket-header {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) auto minmax(90px, 1fr);
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) clamp(var(--s-4), 4vw, var(--s-12));
+}
+
+.mode-ticket-header .kicker {
+  text-align: center;
+}
+
+.mode-ticket {
+  display: grid;
+  grid-template-columns: 38fr 62fr;
+  min-height: min(70vh, 620px);
+  border-top: 1px solid color-mix(in srgb, var(--cream) 26%, transparent);
+}
+
+.mode-ticket-art {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  overflow: hidden;
+  border-right: var(--border) solid var(--purple-deep);
+}
+
+.mode-ticket-art[data-mode="dance"] {
+  background: linear-gradient(180deg, var(--purple-deep), var(--pink-hot));
+}
+.mode-ticket-art[data-mode="soccer"] {
+  background: linear-gradient(180deg, var(--ink-far), var(--green-deep));
+}
+.mode-ticket-art[data-mode="drive"] {
+  background: linear-gradient(180deg, var(--purple), var(--orange));
+}
+
+.mode-ticket-art img {
+  position: relative;
+  width: min(60%, 220px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(var(--s-2) var(--s-2) 0 var(--ink));
+}
+
+.mode-ticket-body {
+  align-self: center;
+  display: grid;
+  gap: var(--s-4);
+  padding: clamp(var(--s-4), 4vw, var(--s-12));
+}
+
+.mode-ticket-body h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 4vw, 3.4rem);
+  line-height: 0.94;
+}
+
+.mode-ticket-body em {
+  color: var(--pink);
+  font-style: normal;
+}
+
+.rule-triplet {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4);
+  margin: 0;
+}
+
+.rule-triplet div {
+  border-top: var(--border) solid var(--purple);
+  padding-top: var(--s-2);
+}
+
+.rule-triplet dt {
+  color: var(--pink-pale);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.rule-triplet dd {
+  margin: var(--s-1) 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.mode-control-note {
+  margin: 0;
+  color: var(--cream);
+  font-size: 0.82rem;
+}
+
+.mode-ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+.mode-ticket-actions .secondary-button {
+  padding: 0 var(--s-4);
+  border: var(--border) solid var(--purple);
+  color: var(--cream);
+  background: transparent;
+}
+
+/* ── M2 play ────────────────────────────────────────────────────────────── */
+
+.mode-condition {
+  margin: 0;
+  color: var(--cream);
+  font-family: var(--font-mono);
+  font-size: clamp(0.58rem, 1vw, 0.76rem);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.hud-band.mode-hud {
+  grid-template-columns: auto auto minmax(96px, 1fr) minmax(104px, 0.8fr);
+}
+
+.hud-band.mode-hud[data-mode="soccer"] {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  justify-items: center;
+}
+
+.hud-band.mode-hud[data-mode="soccer"] p:first-child {
+  justify-self: start;
+}
+
+.hud-band.mode-hud[data-mode="soccer"] p:last-child {
+  justify-self: end;
+}
+
+.mode-spine strong {
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 2vw, 1.5rem);
+  letter-spacing: 0.06em;
+}
+
+.hud-band.mode-hud p[data-danger="true"] strong {
+  color: var(--danger);
+}
+
+.mode-meter {
+  display: grid;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.mode-meter span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.mode-track {
+  height: 6px;
+  border: 1px solid var(--purple);
+  background: var(--ink-deep);
+}
+
+.mode-track i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+
+.mode-track i[data-low="true"] {
+  background: var(--danger);
+}
+
+/* ── M3 result ──────────────────────────────────────────────────────────── */
+
+/* Korean headlines must not orphan a one-syllable tail on its own line. */
+.mode-ticket-body h1,
+.scene-mode-result .result-copy h1 {
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
+/* Longer stamps (`5—3`, `62%`) cannot use the single-glyph GRADE size. */
+.scene-mode-result .grade-stamp strong[data-wide="true"] {
+  font-size: clamp(3.4rem, 9vw, 7rem);
+  line-height: 1;
+  padding-top: 0;
+}
+
+.scene-mode-result .result-pass {
+  grid-template-rows: 1fr;
+}
+
+.scene-mode-result .share-status {
+  align-self: center;
+  margin: 0;
+  color: var(--pink-pale);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+/* ── responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .mode-ticket {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .mode-ticket-art {
+    min-height: 180px;
+    border-right: 0;
+    border-bottom: var(--border) solid var(--purple-deep);
+  }
+  .mode-ticket-art img {
+    width: min(38%, 160px);
+  }
+  .rule-triplet {
+    grid-template-columns: 1fr;
+    gap: var(--s-2);
+  }
+  .hud-band.mode-hud {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    gap: var(--s-2);
+    padding: var(--s-1) var(--s-2);
+  }
+  .hud-band.mode-hud[data-mode="soccer"] {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  /* the bar drops out but its percentage stays — the meter is never colour-only */
+  .hud-band.mode-hud .mode-track {
+    display: none;
+  }
+  .mode-setlist {
+    padding: var(--s-3) var(--s-4) 0;
+  }
+  .mode-enter {
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .scene-mode-result .result-copy h1 {
+    font-size: clamp(1.35rem, 5.6vw, 2rem);
+  }
+}
+
+@media (max-width: 360px) {
+  .mode-stop strong {
+    font-size: 0.8rem;
+  }
+  .mode-stop small {
+    display: none;
+  }
+  .scene-mode-result .grade-stamp strong[data-wide="true"] {
+    font-size: 3rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .scene-mode-play .mode-condition {
+    display: none;
+  }
+}

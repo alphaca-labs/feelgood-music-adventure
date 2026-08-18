@@ -9,7 +9,15 @@ import {
   useSyncExternalStore,
 } from "react";
 import { assetUrl } from "@/lib/site";
-import { ASSET_VERSION, loadAtlas } from "@/lib/game/atlas";
+import {
+  ASSET_VERSION,
+  EXPECTED_FRAME_COUNT,
+  type LoadedAtlas,
+  loadAtlas,
+} from "@/lib/game/atlas";
+import ModeStage from "@/components/game/mode-stage";
+import { type ModeId } from "@/lib/game/mode-simulation";
+import { MODE_COPY, MODE_ORDER } from "@/lib/game/modes";
 import { GameRuntime, type HudSnapshot } from "@/lib/game/runtime";
 import {
   CHARACTERS,
@@ -29,7 +37,7 @@ import {
   writeSound,
 } from "@/lib/game/storage";
 
-type Scene = "title" | "select" | "play" | "result";
+type Scene = "title" | "select" | "play" | "result" | "mode";
 type LoadState = "loading" | "ready" | "error";
 
 const posterUrl = (character: CharacterId) =>
@@ -80,6 +88,8 @@ const GameShell = () => {
 
   const [scene, setScene] = useState<Scene>("title");
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [atlas, setAtlas] = useState<LoadedAtlas | null>(null);
+  const [mode, setMode] = useState<ModeId>("dance");
   const [hud, setHud] = useState<HudSnapshot>(emptyHud);
   const [summary, setSummary] = useState<RunSummary | null>(null);
   const [checkpoint, setCheckpoint] = useState(false);
@@ -95,6 +105,7 @@ const GameShell = () => {
         select: "캐릭터 선택",
         play: "게임 플레이",
         result: "결과",
+        mode: "모드 세트",
       }[next],
     );
   }, []);
@@ -139,8 +150,9 @@ const GameShell = () => {
   const load = useCallback(
     () =>
       loadAtlas()
-        .then((atlas) => {
-          runtimeRef.current?.setAtlas(atlas);
+        .then((loaded) => {
+          runtimeRef.current?.setAtlas(loaded);
+          setAtlas(loaded);
           setLoadState("ready");
         })
         .catch(() => setLoadState("error")),
@@ -254,6 +266,23 @@ const GameShell = () => {
     }
   }, [summary]);
 
+  /* mode sets (DANCE / SOCCER / DRIVE) ---------------------------------- */
+
+  const chooseMode = useCallback((next: ModeId) => {
+    setMode(next);
+    setAnnouncement(`${MODE_COPY[next].label} 선택됨`);
+  }, []);
+
+  const openMode = useCallback(
+    (next: ModeId) => {
+      // the adventure runtime keeps its own canvas; make sure it is not running
+      runtimeRef.current?.stop();
+      setMode(next);
+      goto("mode");
+    },
+    [goto],
+  );
+
   const hold = (direction: "left" | "right") => ({
     onPointerDown: (event: React.PointerEvent) => {
       event.preventDefault();
@@ -291,7 +320,7 @@ const GameShell = () => {
         </header>
 
         <div className="title-field">
-          <p className="venue-code">JUNGLE / CITY / STAGE · 120 SEC</p>
+          <p className="venue-code">JUNGLE / CITY / STAGE · 110 SEC</p>
           <Image
             className="wordmark"
             src={`${assetUrl("/assets/ui-logo.png")}?v=${ASSET_VERSION}`}
@@ -324,6 +353,36 @@ const GameShell = () => {
           </li>
         </ol>
 
+        {/* Mode setlist — one inserted row; the adventure entry above is unchanged. */}
+        <section className="mode-setlist" aria-label="다음 세트 선택">
+          <p className="kicker">CHOOSE THE NEXT SET</p>
+          <ol className="mode-stops">
+            {MODE_ORDER.map((id) => (
+              <li key={id}>
+                <button
+                  className={`mode-stop mode-stop-${id}`}
+                  type="button"
+                  aria-pressed={mode === id}
+                  onClick={() => chooseMode(id)}
+                  onDoubleClick={() => openMode(id)}
+                >
+                  <span className="route-number">{MODE_COPY[id].number}</span>
+                  <strong>{MODE_COPY[id].label}</strong>
+                  <small>{MODE_COPY[id].tagline}</small>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <button
+            className="secondary-button mode-enter"
+            type="button"
+            onClick={() => openMode(mode)}
+          >
+            {MODE_COPY[mode].entry}
+            <span aria-hidden="true"> ↗</span>
+          </button>
+        </section>
+
         <div className="title-action">
           <button
             className="primary-button"
@@ -349,7 +408,7 @@ const GameShell = () => {
           </button>
           <p className="load-note">
             {loadState === "ready"
-              ? `100 프레임 · 사운드체크 완료${best > 0 ? ` · BEST ${formatScore(best)}` : ""}`
+              ? `${EXPECTED_FRAME_COUNT} 프레임 · 사운드체크 완료${best > 0 ? ` · BEST ${formatScore(best)}` : ""}`
               : loadState === "loading"
                 ? "아틀라스와 사운드체크를 준비하고 있어요."
                 : "무대 에셋을 불러오지 못했어요."}
@@ -656,6 +715,25 @@ const GameShell = () => {
           </p>
         </footer>
       </section>
+
+      {/* ── M1–M3 mode sets (DANCE / SOCCER / DRIVE) ─────────────── */}
+      {scene === "mode" && (
+        <ModeStage
+          key={`${mode}-${character}`}
+          mode={mode}
+          character={character}
+          sound={sound}
+          atlas={atlas}
+          loadState={loadState}
+          onRetryLoad={() => {
+            setLoadState("loading");
+            void load();
+          }}
+          onToggleSound={toggleSound}
+          onAnnounce={setAnnouncement}
+          onChangeMode={() => goto("title")}
+        />
+      )}
     </main>
   );
 };
